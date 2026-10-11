@@ -83,7 +83,22 @@ The repository auto-detects the build environment via `env.sh`:
 
 ---
 
-## Applying to Android Studio
+## Automated 1-Line Installer & Patcher for Termux
+
+Run directly inside Termux to auto-download, patch Android Studio, and configure HomuHomu SDK/NDK:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/sirvkrm/AndroidStudio-Bionic-Libs/main/setup-android-studio-bionic.sh | bash
+```
+
+Or run locally after cloning:
+```bash
+./setup-android-studio-bionic.sh
+```
+
+---
+
+## Manual Extraction
 
 Extract the release tarball into your Android Studio folder:
 
