@@ -35,10 +35,15 @@ echo ">>> [3/4] Building jna (libjnidispatch.so)..."
 
 # 4. sqlite-jdbc
 echo ""
-echo ">>> [4/4] Building sqlite-jdbc (libsqlitejdbc.so)..."
+echo ">>> [4/5] Building sqlite-jdbc (libsqlitejdbc.so)..."
 "$SCRIPT_DIR/libs/sqlite-jdbc/build.sh"
 
-# 5. Pack archive
+# 5. skiko
+echo ""
+echo ">>> [5/5] Building skiko (libskiko-linux-arm64.so)..."
+"$SCRIPT_DIR/libs/skiko/build.sh"
+
+# 6. Pack archive
 echo ""
 echo ">>> Packaging dist archive..."
 cd "$DIST_DIR"
