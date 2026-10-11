@@ -32,8 +32,8 @@ if [ ! -d "${SKIA_DIR}" ]; then
 fi
 
 if [ ! -d "${SKIKO_DIR}" ]; then
-    echo "ERROR: Skiko directory not found at ${SKIKO_DIR}"
-    exit 1
+    echo ">> Cloning sirvkrm/skiko-android..."
+    git clone --depth 1 https://github.com/sirvkrm/skiko-android.git "${SKIKO_DIR}"
 fi
 
 # 1. Ensure Skia is built
