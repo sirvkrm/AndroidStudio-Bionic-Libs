@@ -14,8 +14,9 @@ This repository replaces fragile ad-hoc patching with a clean, repeatable build 
 | **`pty4j`** | `lib/pty4j/linux/aarch64/libpty.so` | JetBrains `pty4j` | Embedded terminal emulation subsystem. |
 | **`jna`** | `lib/jna/linux-aarch64/libjnidispatch.so` | `java-native-access/jna` | Java Native Access C bridge. |
 | **`sqlite-jdbc`**| `lib/sqlite/linux-aarch64/libsqlitejdbc.so` | `xerial/sqlite-jdbc` + SQLite 3.53+ | Native SQLite database engine used by plugins & indexes. |
+| **`skiko`** | `lib/skiko/libskiko-linux-arm64.so` | JetBrains `skiko` + `google/skia` | Jetpack Compose / JetBrains UI hardware graphics engine. |
 
-All binaries and shared objects are compiled against Android Bionic `libc.so`, `libm.so`, and `libdl.so` with `SONAME` flags set properly.
+All binaries and shared objects are compiled against Android Bionic `libc.so`, `libm.so`, and `libdl.so` with `SONAME` flags set properly. Linker `RUNPATH` includes `/system/lib64`, `$ORIGIN`, and `/data/data/com.termux/files/usr/lib`.
 
 ---
 
@@ -36,6 +37,9 @@ Each library in `libs/` has its own standalone `build.sh` script:
 
 # Build only sqlite-jdbc
 ./libs/sqlite-jdbc/build.sh
+
+# Build only skiko
+./libs/skiko/build.sh
 ```
 
 ### Method 2: Build All & Package
@@ -54,14 +58,16 @@ dist/
 ├── lib/
 │   ├── jna/
 │   │   └── linux-aarch64/
-│   │       └── libjnidispatch.so (169 KB)
+│   │       └── libjnidispatch.so     (169 KB)
 │   ├── pty4j/
 │   │   └── linux/aarch64/
-│   │       └── libpty.so         (14 KB)
+│   │       └── libpty.so             (14 KB)
+│   ├── skiko/
+│   │   └── libskiko-linux-arm64.so   (19 MB)
 │   └── sqlite/
 │       └── linux-aarch64/
-│           └── libsqlitejdbc.so  (1.3 MB)
-└── android-studio-bionic-libs-aarch64.tar.gz (2.0 MB)
+│           └── libsqlitejdbc.so      (1.3 MB)
+└── android-studio-bionic-libs-aarch64.tar.gz (~11 MB)
 ```
 
 ---

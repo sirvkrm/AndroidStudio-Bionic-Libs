@@ -2,10 +2,11 @@
 dist/
 build/
 libs/*/build/
-libs/sqlite-jdbc/target/
-libs/jna/build/
-libs/jna/dist/
-libs/jna/native/libffi/aarch64-unknown-linux-android/
+libs/*/target/
+libs/pty4j/src/
+libs/jna/src/
+libs/sqlite-jdbc/src/
+libs/skiko/build/
 
 # Archives & temporary files
 *.zip
