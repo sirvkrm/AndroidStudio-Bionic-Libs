@@ -18,6 +18,7 @@ cd "$SRC_DIR"
 # 1. Dynamic executable (standard Bionic linker64)
 $CC -O2 -Wall -Wextra -D "VERSION=\"$VERSION\"" -std=c11 \
     main.c inotify.c util.c \
+    $LDFLAGS \
     -o "$BUILD_DIR/fsnotifier"
 
 # 2. Static executable (failsafe with no dynamic dependencies)

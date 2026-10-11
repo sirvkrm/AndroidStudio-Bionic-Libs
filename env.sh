@@ -30,7 +30,7 @@ if [ -d "/data/data/com.termux" ] || [ "$(uname -o 2>/dev/null)" = "Android" ]; 
     export STRIP="${STRIP:-llvm-strip}"
     export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
     export CFLAGS="-O2 -fPIC -I$PREFIX/include"
-    export LDFLAGS="-L$PREFIX/lib"
+    export LDFLAGS="-L$PREFIX/lib -Wl,-rpath,/system/lib64 -Wl,-rpath,$PREFIX/lib -Wl,-rpath,\$ORIGIN/../lib -Wl,-rpath,\$ORIGIN"
     export SYSROOT_INC="$PREFIX/include"
 else
     export IS_TERMUX=0
@@ -58,7 +58,7 @@ else
     export SYSROOT="$NDK_LLVM/sysroot"
     export SYSROOT_INC="$SYSROOT/usr/include"
     export CFLAGS="-O2 -fPIC"
-    export LDFLAGS=""
+    export LDFLAGS="-Wl,-rpath,/system/lib64 -Wl,-rpath,/data/data/com.termux/files/usr/lib -Wl,-rpath,\$ORIGIN/../lib -Wl,-rpath,\$ORIGIN"
 fi
 
 echo "[env] Compiler : $CC"
