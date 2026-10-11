@@ -1,0 +1,9 @@
+[submodule "libs/jna"]
+	path = libs/jna
+	url = https://github.com/java-native-access/jna.git
+[submodule "libs/pty4j"]
+	path = libs/pty4j
+	url = https://github.com/JetBrains/pty4j.git
+[submodule "libs/sqlite-jdbc"]
+	path = libs/sqlite-jdbc
+	url = https://github.com/xerial/sqlite-jdbc.git
