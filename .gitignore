@@ -1,0 +1,15 @@
+# Build artifacts
+dist/
+build/
+libs/*/build/
+libs/sqlite-jdbc/target/
+libs/jna/build/
+libs/jna/dist/
+libs/jna/native/libffi/aarch64-unknown-linux-android/
+
+# Archives & temporary files
+*.zip
+*.tar.gz
+*.o
+*.so
+*.a
