@@ -25,22 +25,27 @@ echo ">>> [1/4] Building fsnotifier..."
 
 # 2. pty4j
 echo ""
-echo ">>> [2/4] Building pty4j (libpty.so)..."
+echo ">>> [2/6] Building pty4j (libpty.so)..."
 "$SCRIPT_DIR/libs/pty4j/build.sh"
 
-# 3. jna
+# 3. libutil (login_tty compatibility for pty4j)
 echo ""
-echo ">>> [3/4] Building jna (libjnidispatch.so)..."
+echo ">>> [3/6] Building libutil (libutil.so)..."
+"$SCRIPT_DIR/libs/libutil/build.sh"
+
+# 4. jna
+echo ""
+echo ">>> [4/6] Building jna (libjnidispatch.so)..."
 "$SCRIPT_DIR/libs/jna/build.sh"
 
-# 4. sqlite-jdbc
+# 5. sqlite-jdbc
 echo ""
-echo ">>> [4/5] Building sqlite-jdbc (libsqlitejdbc.so)..."
+echo ">>> [5/6] Building sqlite-jdbc (libsqlitejdbc.so)..."
 "$SCRIPT_DIR/libs/sqlite-jdbc/build.sh"
 
-# 5. skiko
+# 6. skiko
 echo ""
-echo ">>> [5/5] Building skiko (libskiko-linux-arm64.so)..."
+echo ">>> [6/6] Building skiko (libskiko-linux-arm64.so)..."
 "$SCRIPT_DIR/libs/skiko/build.sh"
 
 # 6. Pack archive
