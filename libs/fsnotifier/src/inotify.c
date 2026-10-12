@@ -74,16 +74,21 @@ bool init_inotify(void) {
 static void read_watch_descriptors_count(void) {
   FILE* f = fopen(WATCH_COUNT_NAME, "r");
   if (f == NULL) {
-    userlog(LOG_ERR, "can't open %s: %s", WATCH_COUNT_NAME, strerror(errno));
+    userlog(LOG_ERR, "can't open %s: %s (using Android fallback 65536)", WATCH_COUNT_NAME, strerror(errno));
+    watch_count = 65536;
     return;
   }
 
   char* str = read_line(f);
   if (str == NULL) {
-    userlog(LOG_ERR, "can't read from %s", WATCH_COUNT_NAME);
+    userlog(LOG_ERR, "can't read from %s (using Android fallback 65536)", WATCH_COUNT_NAME);
+    watch_count = 65536;
   }
   else {
     watch_count = (int)strtol(str, NULL, 10);
+    if (watch_count <= 0) {
+      watch_count = 65536;
+    }
   }
 
   fclose(f);

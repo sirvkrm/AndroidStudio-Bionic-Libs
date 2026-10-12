@@ -52,6 +52,8 @@ $CC $CFLAGS -shared -Wl,-soname,libjnidispatch.so \
     $LDFLAGS -ldl -lm -lc \
     -o "$BUILD_DIR/libjnidispatch.so"
 
+mkdir -p "$DIST_DIR/lib/jna/linux-aarch64" "$DIST_DIR/lib/jna/aarch64"
 cp -f "$BUILD_DIR/libjnidispatch.so" "$DIST_DIR/lib/jna/linux-aarch64/libjnidispatch.so"
+cp -f "$BUILD_DIR/libjnidispatch.so" "$DIST_DIR/lib/jna/aarch64/libjnidispatch.so"
 
-echo "[jna] SUCCESS -> $DIST_DIR/lib/jna/linux-aarch64/libjnidispatch.so"
+echo "[jna] SUCCESS -> $DIST_DIR/lib/jna/{aarch64,linux-aarch64}/libjnidispatch.so"
