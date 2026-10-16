@@ -24,8 +24,8 @@ SDK_36_URL="https://github.com/HomuHomu833/android-sdk-custom/releases/download/
 NDK_R29_URL="https://github.com/HomuHomu833/android-ndk-custom/releases/download/r29/android-ndk-r29-beta4-aarch64-linux-android.tar.xz"
 NDK_VERSION_DIR="29.0.14033849"
 
-# Official Android Studio Linux ARM64 (Fallback download)
-STUDIO_DOWNLOAD_URL="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2024.3.1.13/android-studio-2024.3.1.13-linux.tar.gz"
+# Official Android Studio Linux ARM64 (Latest Stable Rabbit 1)
+STUDIO_DOWNLOAD_URL="https://edgedl.me.gvt1.com/android/studio/ide-zips/2026.2.1.8/android-studio-rabbit1-linux.tar.gz"
 
 # Dry run flag
 DRY_RUN="no"
@@ -333,10 +333,13 @@ patch_scripts_and_vmoptions() {
 export DISPLAY="${DISPLAY:-:0}"
 export GDK_BACKEND=x11
 unset LD_PRELOAD
-if [ -z "${STUDIO_JDK:-}" ] && [ -d "/data/data/com.termux/files/usr/lib/jvm/openjdk-17" ]; then
-    export STUDIO_JDK="/data/data/com.termux/files/usr/lib/jvm/openjdk-17"
-elif [ -z "${STUDIO_JDK:-}" ] && [ -d "/data/data/com.termux/files/usr/lib/jvm/openjdk-21" ]; then
-    export STUDIO_JDK="/data/data/com.termux/files/usr/lib/jvm/openjdk-21"
+if [ -z "${STUDIO_JDK:-}" ]; then
+    for _jdk in "java-25-openjdk" "openjdk-25" "java-21-openjdk" "openjdk-21" "java-17-openjdk" "openjdk-17"; do
+        if [ -d "/data/data/com.termux/files/usr/lib/jvm/${_jdk}" ]; then
+            export STUDIO_JDK="/data/data/com.termux/files/usr/lib/jvm/${_jdk}"
+            break
+        fi
+    done
 fi
 export LD_LIBRARY_PATH="/system/lib64:/data/data/com.termux/files/usr/lib:$IDE_HOME/lib/skiko:$IDE_HOME/lib/sqlite/linux-aarch64:${LD_LIBRARY_PATH:-}"
 # <<< STUDIO_BIONIC_PATCHED <<<
@@ -353,6 +356,7 @@ EOF
   if [[ -f "$vmoptions" ]]; then
     cecho yellow "  ✏ Appending Bionic runtime JVM options to studio64.vmoptions..."
     if [[ "$DRY_RUN" != "yes" ]]; then
+      sed -i 's/-Dsun.java2d.metal=true/-Dsun.java2d.metal=false/g' "$vmoptions" 2>/dev/null || true
       if ! grep -q "jna.boot.library.path" "$vmoptions"; then
         cat << EOF >> "$vmoptions"
 
@@ -366,9 +370,42 @@ EOF
 -Dsun.awt.noerasebackground=true
 EOF
       fi
+      if ! grep -q "studiobot.show.on.first.open" "$vmoptions"; then
+        cat << EOF >> "$vmoptions"
+
+# Disable Auto-opening StudioBot / Gemini Compose ToolWindow to prevent EDT crash
+-Dstudio.bot.enabled=false
+-Dstudiobot.enabled=false
+-Dstudio.flags.studiobot.show.on.first.open=false
+-Dstudio.flags.studiobot.chat.use.compose.for.ui=false
+-Dsun.java2d.metal=false
+-Dsun.java2d.opengl=false
+-Dsun.java2d.xrender=false
+-Dide.browser.jcef.enabled=false
+-Dcompose.swing.render.on.graphics=true
+-Dskiko.renderApi=SOFTWARE_COMPAT
+EOF
+      fi
     fi
     cecho green "  ✅ studio64.vmoptions patched."
   fi
+
+  # 4. Disable heavy Gemini plugin in disabled_plugins.txt
+  cecho yellow "  ✏ Disabling Gemini / StudioBot plugin by default for stability..."
+  if [[ "$DRY_RUN" != "yes" ]]; then
+    local config_root="$HOME/.config/Google"
+    mkdir -p "$config_root/AndroidStudio2026.2.1"
+    for conf in "$config_root"/AndroidStudio*; do
+      if [[ -d "$conf" ]]; then
+        local dis_file="$conf/disabled_plugins.txt"
+        touch "$dis_file"
+        if ! grep -q "com.google.studio.gemini" "$dis_file"; then
+          echo "com.google.studio.gemini" >> "$dis_file"
+        fi
+      fi
+    done
+  fi
+  cecho green "  ✅ Gemini plugin disabled."
 }
 
 ### ================================
@@ -458,6 +495,13 @@ set -e
 export DISPLAY="\${DISPLAY:-:0}"
 export GDK_BACKEND=x11
 unset LD_PRELOAD
+if [ -n "${SELECTED_JDK:-}" ]; then
+    export STUDIO_JDK="$SELECTED_JDK"
+    export JAVA_HOME="$SELECTED_JDK"
+fi
+export SKIKO_RENDER_API=SOFTWARE_COMPAT
+export _JAVA_OPTIONS="-Djava.io.tmpdir=$PREFIX/tmp -Dskiko.library.path=$ANDROID_STUDIO/lib/skiko -Dskiko.renderApi=SOFTWARE_COMPAT -Djna.boot.library.path=$ANDROID_STUDIO/lib/jna/aarch64:$ANDROID_STUDIO/lib/jna/linux-aarch64 -Dstudio.bot.enabled=false -Dstudiobot.enabled=false -Dstudio.flags.studiobot.show.on.first.open=false -Dsun.java2d.metal=false -Dcompose.swing.render.on.graphics=true \${_JAVA_OPTIONS:-}"
+export LD_LIBRARY_PATH="/system/lib64:$PREFIX/lib:$ANDROID_STUDIO/lib/skiko:$ANDROID_STUDIO/lib/sqlite/linux-aarch64:$ANDROID_STUDIO/lib/jna/aarch64:$ANDROID_STUDIO/lib/jna/linux-aarch64:\${LD_LIBRARY_PATH:-}"
 
 export ANDROID_HOME="$SDK_ROOT"
 export ANDROID_SDK_ROOT="$SDK_ROOT"
