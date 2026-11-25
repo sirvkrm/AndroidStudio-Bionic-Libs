@@ -1,107 +1,79 @@
-# AndroidStudio-bionic-libs
+<div align="center">
 
-Native libraries for Android Studio and the IntelliJ platform compiled natively for **`linux_android` / `linux_arm64_bionic`** (Termux / Android native).
+# AndroidStudio-Bionic-Libs
 
-This repository replaces fragile ad-hoc patching with a clean, repeatable build system supporting both **standalone individual library builds** and a unified **Build All** pipeline.
+**Native ARM64 Android Bionic dependencies enabling desktop Android Studio (`2026.2.1.8+`) to run directly in Termux without PRoot, chroot, or `glibc-runner`**
+
+[![Platform](https://img.shields.io/badge/Platform-Android%20ARM64%20(Termux)-3DDC84?style=flat-square&logo=android&logoColor=white)](https://termux.dev)
+[![Architecture](https://img.shields.io/badge/Arch-aarch64%20%7C%20Bionic-2563EB?style=flat-square)](env.sh)
+[![Release](https://img.shields.io/github/v/release/sirvkrm/AndroidStudio-Bionic-Libs?style=flat-square&label=Latest%20Release&color=0EA5E9)](https://github.com/sirvkrm/AndroidStudio-Bionic-Libs/releases)
+[![Skiko](https://img.shields.io/badge/Skiko-v0.144.5%20(X11%20%2B%20GLX%20%2F%20Software)-7C3AED?style=flat-square)](https://github.com/sirvkrm/skiko-android)
+[![License](https://img.shields.io/badge/License-Apache%202.0-64748B?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
+
+</div>
 
 ---
 
-## Architecture & Components
+## Components (`v2.0.0`)
 
-| Component | Output Binary / Library | Upstream Source | Purpose in Android Studio |
+Every native shared object and binary below is compiled against Android Bionic (`libc.so`, `libm.so`, `libdl.so`) with explicit `SONAME` and Bionic-compatible `RUNPATH` entries (`/system/lib64`, Termux `$PREFIX/lib`, `$ORIGIN`):
+
+| Component | Output Artifact | Upstream Source | Role in Android Studio |
 | :--- | :--- | :--- | :--- |
-| **`fsnotifier`** | `bin/fsnotifier`<br>`bin/fsnotifier-static` | JetBrains `intellij-community` | Inotify file system watcher. Prevents IDE freeze & file desync. |
-| **`pty4j`** | `lib/pty4j/linux/aarch64/libpty.so` | JetBrains `pty4j` | Embedded terminal emulation subsystem. |
-| **`jna`** | `lib/jna/linux-aarch64/libjnidispatch.so` | `java-native-access/jna` | Java Native Access C bridge. |
-| **`sqlite-jdbc`**| `lib/sqlite/linux-aarch64/libsqlitejdbc.so` | `xerial/sqlite-jdbc` + SQLite 3.53+ | Native SQLite database engine used by plugins & indexes. |
-| **`skiko`** | `lib/skiko/libskiko-linux-arm64.so` | JetBrains `skiko` + `google/skia` | Jetpack Compose / JetBrains UI hardware graphics engine. |
-
-All binaries and shared objects are compiled against Android Bionic `libc.so`, `libm.so`, and `libdl.so` with `SONAME` flags set properly. Linker `RUNPATH` includes `/system/lib64`, `$ORIGIN`, and `/data/data/com.termux/files/usr/lib`.
+| **`fsnotifier`** | `bin/fsnotifier`<br>`bin/fsnotifier-static` | JetBrains `intellij-community` | Native inotify file-system watcher (prevents IDE file-sync freezes) |
+| **`pty4j`** | `lib/pty4j/linux/aarch64/libpty.so` | JetBrains `pty4j` | Embedded IDE terminal subsystem |
+| **`libutil`** | `lib/pty4j/linux/aarch64/libutil.so` | Custom Bionic shim | Provides POSIX `login_tty` symbol expected by `pty4j` |
+| **`jna`** | `lib/jna/{linux-aarch64,aarch64}/libjnidispatch.so` | `java-native-access/jna` (`7.0.4`) | Java Native Access C bridge aligned with Rabbit 1 `JNA 7.0.4` |
+| **`sqlite-jdbc`** | `lib/sqlite/linux-aarch64/libsqlitejdbc.so` | `xerial/sqlite-jdbc` + SQLite | Native SQLite engine for IDE caches & database tools |
+| **`skiko`** | `lib/skiko/libskiko-linux-arm64.so` | [`sirvkrm/skiko-android`](https://github.com/sirvkrm/skiko-android) (`bionic-v0.144.5`) | Skiko/Skia Compose UI engine (linked cleanly without `libandroid.so` so host Bionic `layoutlib` loads without conflict) |
+| **`bionic-fs`** | `lib/studio-bionic-fs.jar` | Custom JDK 25 `ClassFile` agent | Makes unreadable non-rooted Android parent paths (`/`, `/data`, `/data/data`, `/storage/emulated`) browseable down to `$HOME` and `/sdcard` in Studio's file chooser |
 
 ---
 
-## Compilation Modes
+## Automated 1-Command Installer (Recommended)
 
-### Method 1: Single Library Compilation
-Each library in `libs/` has its own standalone `build.sh` script:
+Use the full interactive installer in [**sirvkrm/AndroidStudio-For-Android**](https://github.com/sirvkrm/AndroidStudio-For-Android), which automatically installs **Android Studio Rabbit 1 (`2026.2.1.8`)**, OpenJDK 25, these `v2.0.0` Bionic libraries, Termux `aapt2`, ARM64 SDK/NDK, and the matching AOSP Bionic **Layoutlib** runtime from [**sirvkrm/libandroidruntime-host-bionic**](https://github.com/sirvkrm/libandroidruntime-host-bionic):
 
 ```bash
-# Build only fsnotifier
-./libs/fsnotifier/build.sh
-
-# Build only pty4j
-./libs/pty4j/build.sh
-
-# Build only jna
-./libs/jna/build.sh
-
-# Build only sqlite-jdbc
-./libs/sqlite-jdbc/build.sh
-
-# Build only skiko
-./libs/skiko/build.sh
+curl -fsSL https://raw.githubusercontent.com/sirvkrm/AndroidStudio-For-Android/main/install.sh | bash
 ```
 
-### Method 2: Build All & Package
-Builds every native library and creates a ready-to-extract tarball:
+---
+
+## Building from Source
+
+`env.sh` automatically detects either native Termux on-device compilation (`clang` / `$PREFIX`) or Linux `x86_64` NDK cross-compilation (`$ANDROID_NDK_ROOT`).
+
+### Build Individual Targets
+
+```bash
+./libs/fsnotifier/build.sh
+./libs/pty4j/build.sh
+./libs/libutil/build.sh
+./libs/jna/build.sh
+./libs/sqlite-jdbc/build.sh
+./libs/skiko/build.sh
+./libs/bionic-fs/build.sh   # Requires JDK 25+ javac
+```
+
+### Build All & Package Release Archive
 
 ```bash
 ./build-all.sh
 ```
 
-**Output artifacts in `dist/`:**
-```text
-dist/
-├── bin/
-│   ├── fsnotifier            (24 KB, dynamic Bionic)
-│   └── fsnotifier-static     (3.4 MB, static fallback)
-├── lib/
-│   ├── jna/
-│   │   └── linux-aarch64/
-│   │       └── libjnidispatch.so     (169 KB)
-│   ├── pty4j/
-│   │   └── linux/aarch64/
-│   │       └── libpty.so             (14 KB)
-│   ├── skiko/
-│   │   └── libskiko-linux-arm64.so   (19 MB)
-│   └── sqlite/
-│       └── linux-aarch64/
-│           └── libsqlitejdbc.so      (1.3 MB)
-└── android-studio-bionic-libs-aarch64.tar.gz (~11 MB)
-```
+Output tarball is written to `dist/android-studio-bionic-libs-2026.2.1-aarch64.tar.gz`.
 
 ---
 
-## Toolchain & Environment Support
+## Manual Extraction (Advanced)
 
-The repository auto-detects the build environment via `env.sh`:
-
-1. **Inside Termux (On-Device ARM64):**
-   * Uses host Termux `clang`, `llvm-ar`, and `/data/data/com.termux/files/usr` sysroot.
-2. **On Linux x86_64 (Cross-Compilation):**
-   * Automatically uses Android NDK (default: `/opt/android-ndk/android-ndk-r26d` or `$ANDROID_NDK_ROOT`) with `aarch64-linux-android24-clang`.
-
----
-
-## Automated 1-Line Installer & Patcher for Termux
-
-Run directly inside Termux to auto-download, patch Android Studio, and configure HomuHomu SDK/NDK:
+If updating an already-extracted Android Studio Rabbit 1 directory manually:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/sirvkrm/AndroidStudio-Bionic-Libs/main/setup-android-studio-bionic.sh | bash
+tar -xzf android-studio-bionic-libs-2026.2.1-aarch64.tar.gz -C ~/android-studio/
+cp -f ~/android-studio/lib/skiko/libskiko-linux-arm64.so ~/android-studio/jbr/lib/
+cp -f ~/android-studio/lib/pty4j/linux/aarch64/libutil.so "$PREFIX/lib/"
 ```
 
-Or run locally after cloning:
-```bash
-./setup-android-studio-bionic.sh
-```
-
----
-
-## Manual Extraction
-
-Extract the release tarball into your Android Studio folder:
-
-```bash
-tar -xzf android-studio-bionic-libs-aarch64.tar.gz -C /path/to/android-studio/
-```
+Pass `-javaagent:$HOME/android-studio/lib/studio-bionic-fs.jar` in your IDE profile's `studio64.vmoptions` (keep it out of global `_JAVA_OPTIONS` so Gradle daemons remain unaffected).

@@ -13,6 +13,7 @@ source "${ROOT_DIR}/env.sh"
 
 SKIA_DIR="${SKIA_DIR:-${ROOT_DIR}/../skia}"
 SKIKO_DIR="${SKIKO_DIR:-${ROOT_DIR}/../skiko}"
+SKIKO_BRANCH="${SKIKO_BRANCH:-bionic-v0.144.5}"
 BUILD_DIR="${SCRIPT_DIR}/build"
 DIST_DIR="${ROOT_DIR}/dist"
 
@@ -32,8 +33,8 @@ if [ ! -d "${SKIA_DIR}" ]; then
 fi
 
 if [ ! -d "${SKIKO_DIR}" ]; then
-    echo ">> Cloning sirvkrm/skiko-android..."
-    git clone --depth 1 https://github.com/sirvkrm/skiko-android.git "${SKIKO_DIR}"
+    echo ">> Cloning sirvkrm/skiko-android (${SKIKO_BRANCH})..."
+    git clone --depth 1 --branch "${SKIKO_BRANCH}" https://github.com/sirvkrm/skiko-android.git "${SKIKO_DIR}"
 fi
 
 # 1. Ensure Skia is built
@@ -65,14 +66,27 @@ if [ "${IS_TERMUX}" = "0" ] && [ ! -L "${X11_INC}/X11" ]; then
     fi
 fi
 
-# 3. Locate JDK headers
-JDK_INC_ARGS=()
-if [ -n "${JAVA_HOME:-}" ] && [ -d "${JAVA_HOME}/include" ]; then
-    JDK_INC_ARGS+=("-I${JAVA_HOME}/include" "-I${JAVA_HOME}/include/linux")
-elif [ -d "/usr/lib/jvm/java-21-openjdk-amd64/include" ]; then
-    JDK_INC_ARGS+=("-I/usr/lib/jvm/java-21-openjdk-amd64/include" "-I/usr/lib/jvm/java-21-openjdk-amd64/include/linux")
-elif [ -d "/usr/lib/jvm/default-java/include" ]; then
-    JDK_INC_ARGS+=("-I/usr/lib/jvm/default-java/include" "-I/usr/lib/jvm/default-java/include/linux")
+# 3. Locate JDK headers (note: JDK 25 headless may omit jawt.h/jawt_md.h; stage them into X11_INC cleanly so jni.h versions never mix)
+JDK_INC_DIR=""
+for cand in "${JAVA_HOME:-}" "/usr/lib/jvm/java-25-openjdk-amd64" "/usr/lib/jvm/java-21-openjdk-amd64" "/usr/lib/jvm/default-java"; do
+    if [ -n "${cand}" ] && [ -f "${cand}/include/jni.h" ]; then
+        JDK_INC_DIR="${cand}/include"
+        break
+    fi
+done
+if [ -z "${JDK_INC_DIR}" ]; then
+    echo "ERROR: Could not locate JDK include directory with jni.h"
+    exit 1
+fi
+JDK_INC_ARGS=("-I${JDK_INC_DIR}" "-I${JDK_INC_DIR}/linux")
+if [ ! -f "${JDK_INC_DIR}/jawt.h" ]; then
+    for jawt_cand in "/usr/lib/jvm/java-21-openjdk-amd64/include" "/usr/lib/jvm/default-java/include"; do
+        if [ -f "${jawt_cand}/jawt.h" ] && [ -f "${jawt_cand}/linux/jawt_md.h" ]; then
+            cp -f "${jawt_cand}/jawt.h" "${X11_INC}/jawt.h"
+            cp -f "${jawt_cand}/linux/jawt_md.h" "${X11_INC}/jawt_md.h"
+            break
+        fi
+    done
 fi
 
 # 4. Compile Skiko C++ sources in parallel
@@ -81,7 +95,7 @@ OBJ_DIR="${BUILD_DIR}/objs"
 mkdir -p "${OBJ_DIR}"
 
 python3 - <<PYEOF
-import os, subprocess, concurrent.futures, sys
+import os, subprocess, concurrent.futures, sys, hashlib
 
 cxx = "${CXX}"
 skia_dir = "${SKIA_DIR}"
@@ -91,9 +105,10 @@ x11_inc = "${X11_INC}"
 is_termux = "${IS_TERMUX}"
 
 cflags = [
-    "-std=c++20", "-O3", "-fPIC", "-fvisibility=default",
+    "-std=c++17", "-O3", "-DNDEBUG", "-fPIC", "-fvisibility=default",
     "-fno-rtti", "-fno-exceptions",
     "-DGL_GLEXT_PROTOTYPES",
+    "-DSK_RELEASE",
     "-DSK_ALLOW_STATIC_GLOBAL_INITIALIZERS=1",
     "-DSK_FORCE_DISTANCE_FIELD_TEXT=0",
     "-DSK_GAMMA_APPLY_TO_A8",
@@ -111,6 +126,7 @@ cflags = [
     "-DU_DISABLE_VERSION_SUFFIX=1",
     "-DU_HAVE_LIB_SUFFIX=1",
     "-DU_LIB_SUFFIX_C_NAME=_skiko",
+    "-USK_HIDE_PATH_EDIT_METHODS",
     "-DSK_BUILD_FOR_LINUX",
     "-DSK_VULKAN",
     f"-I{skia_dir}",
@@ -130,6 +146,7 @@ cflags = [
     f"-I{skia_dir}/modules/skshaper/include",
     f"-I{skia_dir}/modules/skunicode/include",
     f"-I{skia_dir}/modules/sksg/include",
+    f"-I{skia_dir}/modules/skresources/include",
     f"-I{skia_dir}/modules/svg/include",
     f"-I{skia_dir}/third_party/externals/harfbuzz/src",
     f"-I{skia_dir}/third_party/icu",
@@ -149,6 +166,8 @@ if is_termux == "0":
 else:
     termux_prefix = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
     cflags.append(f"-I{termux_prefix}/include")
+    if os.path.exists(os.path.join(x11_inc, "jawt.h")):
+        cflags.append(f"-I{x11_inc}")
 
 src_dirs = [
     f"{skiko_core}/src/commonMain/cpp/common",
@@ -159,9 +178,20 @@ src_dirs = [
 sources = []
 for d in src_dirs:
     for root, _, files in os.walk(d):
-        for f in files:
+        for f in sorted(files):
             if f.endswith(".cc") or f.endswith(".cpp"):
                 sources.append(os.path.join(root, f))
+
+# Invalidate object cache if compiler flags or source list changed
+sig = hashlib.sha256(("\n".join([cxx] + cflags + sources)).encode()).hexdigest()
+stamp = os.path.join(obj_dir, ".build_sig")
+prev_sig = open(stamp).read().strip() if os.path.exists(stamp) else ""
+if prev_sig != sig:
+    for old_f in os.listdir(obj_dir):
+        if old_f.endswith(".o"):
+            os.remove(os.path.join(obj_dir, old_f))
+    with open(stamp, "w") as sf:
+        sf.write(sig)
 
 print(f">> Compiling {len(sources)} Skiko C++ files with {os.cpu_count()} threads...")
 
@@ -194,36 +224,24 @@ PYEOF
 TARGET_LIB="${DIST_DIR}/lib/skiko/libskiko-linux-arm64.so"
 echo ">> Linking ${TARGET_LIB}..."
 
-# Assemble static Skia library archives
-SKIA_LIBS=(
-    "${SKIA_OUT}/libskparagraph.a"
-    "${SKIA_OUT}/libsvg.a"
-    "${SKIA_OUT}/libskshaper.a"
-    "${SKIA_OUT}/libskunicode_icu.a"
-    "${SKIA_OUT}/libskunicode_core.a"
-    "${SKIA_OUT}/libicu.a"
-    "${SKIA_OUT}/libharfbuzz.a"
-    "${SKIA_OUT}/libfreetype2.a"
-    "${SKIA_OUT}/libexpat.a"
-    "${SKIA_OUT}/libpng.a"
-    "${SKIA_OUT}/libjpeg.a"
-    "${SKIA_OUT}/libwebp.a"
-    "${SKIA_OUT}/libzlib.a"
-    "${SKIA_OUT}/libskia.a"
-)
+# Assemble all static Skia library archives (excluding x86 SSE4.1 stub on ARM64)
+SKIA_LIBS=()
+for lib in "${SKIA_OUT}"/*.a; do
+    [ "$(basename "${lib}")" = "libwebp_sse41.a" ] && continue
+    SKIA_LIBS+=("${lib}")
+done
 
 ${CXX} -shared -Wl,-soname,libskiko-linux-arm64.so \
     ${LDFLAGS} \
     -Wl,-z,relro,-z,now \
     -Wl,--gc-sections \
-    -Wl,--unresolved-symbols=ignore-all \
     -static-libstdc++ \
     -o "${TARGET_LIB}" \
     ${OBJ_DIR}/*.o \
     -Wl,--start-group \
     "${SKIA_LIBS[@]}" \
     -Wl,--end-group \
-    -lGLESv3 -lEGL -llog -landroid -lm -ldl
+    -lGLESv3 -lEGL -llog -lm -ldl
 
 # 6. Create symlink and strip
 ln -sf "skiko/libskiko-linux-arm64.so" "${DIST_DIR}/lib/libskiko-linux-arm64.so"
