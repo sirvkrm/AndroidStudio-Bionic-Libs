@@ -32,10 +32,10 @@ Every native shared object and binary below is compiled against Android Bionic (
 
 ## Automated 1-Command Installer (Recommended)
 
-Use the full interactive installer in [**sirvkrm/AndroidStudio-For-Android**](https://github.com/sirvkrm/AndroidStudio-For-Android), which automatically installs **Android Studio Rabbit 1 (`2026.2.1.8`)**, OpenJDK 25, these `v2.0.0` Bionic libraries, Termux `aapt2`, ARM64 SDK/NDK, and the matching AOSP Bionic **Layoutlib** runtime from [**sirvkrm/libandroidruntime-host-bionic**](https://github.com/sirvkrm/libandroidruntime-host-bionic):
+Use the full interactive installer in [**sirvkrm/androidstudio-bionic-termux**](https://github.com/sirvkrm/androidstudio-bionic-termux), which automatically installs **Android Studio Rabbit 1 (`2026.2.1.8`)**, OpenJDK 25, these `v2.0.0` Bionic libraries, Termux `aapt2`, ARM64 SDK/NDK, and the matching AOSP Bionic **Layoutlib** runtime from [**sirvkrm/libandroidruntime-host-bionic**](https://github.com/sirvkrm/libandroidruntime-host-bionic):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sirvkrm/AndroidStudio-For-Android/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sirvkrm/androidstudio-bionic-termux/main/install.sh | bash
 ```
 
 ---
